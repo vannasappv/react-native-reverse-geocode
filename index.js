@@ -48,6 +48,18 @@ const searchForLocations = (
   );
 };
 
-const SearchForLocations = { searchForLocations };
+const searchForLocationsByCoordinate = (
+  latitude: number,
+  longitude: number,
+  callback: Callback,
+  debounceMs: number = 200,
+) => {
+  debounce(
+    RNReverseGeocode.searchForLocationsByCoordinate(latitude, longitude, callback),
+    debounceMs,
+  );
+};
+
+const SearchForLocations = { searchForLocations, searchForLocationsByCoordinate };
 
 export default SearchForLocations;

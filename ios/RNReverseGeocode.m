@@ -5,6 +5,9 @@
 #import <React/RCTConvert+CoreLocation.h>
 #import <React/RCTUtils.h>
 
+#import <AddressBookUI/AddressBookUI.h>
+#import <Contacts/Contacts.h>
+
 @interface RCTConvert (Mapkit)
 
 + (MKCoordinateSpan)MKCoordinateSpan:(id)json;
@@ -36,6 +39,7 @@
 @implementation RNReverseGeocode
 {
     MKLocalSearch *localSearch;
+    CLGeocoder *geocoder;
 }
 
 - (dispatch_queue_t)methodQueue
@@ -81,6 +85,44 @@ RCT_EXPORT_METHOD(searchForLocations:(NSString *)searchText near:(MKCoordinateRe
         } else {
             NSArray *RCTResponse = [weakSelf formatLocalSearchCallback:response];
             callback(@[[NSNull null], RCTResponse]);
+        }
+    }];
+}
+
+RCT_EXPORT_METHOD(searchForLocationsByCoordinate:(double)latitude longitude:(double)longitude callback:(RCTResponseSenderBlock)callback)
+{
+    if (!geocoder) {
+        geocoder = [[CLGeocoder alloc] init];
+    }
+    
+    CLLocation *location = [[CLLocation alloc] initWithLatitude:latitude longitude:longitude];
+    [geocoder reverseGeocodeLocation:location completionHandler:^(NSArray<CLPlacemark *> * _Nullable placemarks, NSError * _Nullable error) {
+        if (error) {
+            NSLog(@"searchForLocationsByCoordinate - err: %@", error.description);
+            callback(@[RCTMakeError(@"Failed to make coordinate search. ", error, @{@"latitude": @(latitude), @"longitude": @(longitude)}), [NSNull null]]);
+        } else {
+            NSMutableArray *response = [[NSMutableArray alloc] init];
+            
+            for (CLPlacemark *placemark in placemarks) {
+                NSMutableDictionary *formedLocation = [[NSMutableDictionary alloc] init];
+                
+                [formedLocation setValue:placemark.name forKey:@"name"];
+                
+                NSString *formattedAddress = @"";
+                if (@available(iOS 11.0, *)) {
+                    formattedAddress = [[CNPostalAddressFormatter stringFromPostalAddress:placemark.postalAddress style:CNPostalAddressFormatterStyleMailingAddress] stringByReplacingOccurrencesOfString:@"\n" withString:@", "];
+                } else {
+                    // Fallback on earlier versions
+                    formattedAddress = [ABCreateStringWithAddressDictionary(placemark.addressDictionary, YES) stringByReplacingOccurrencesOfString:@"\n" withString:@", "];
+                }
+                [formedLocation setValue:formattedAddress forKey:@"address"];
+                [formedLocation setValue:@{@"latitude": @(placemark.location.coordinate.latitude),
+                                           @"longitude": @(placemark.location.coordinate.longitude)} forKey:@"location"];
+                
+                [response addObject:formedLocation];
+            }
+            
+            callback(@[[NSNull null], [response copy]]);
         }
     }];
 }
