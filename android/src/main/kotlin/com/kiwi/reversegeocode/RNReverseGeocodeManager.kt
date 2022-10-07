@@ -134,4 +134,33 @@ class RNReverseGeocodeManager (reactContext: ReactApplicationContext) : ReactCon
       callback.invoke(e.message, null)
     }
   }
+
+  @ReactMethod
+  fun searchForLocationsByCoordinate(latitude: Double, longitude: Double, callback: Callback) {
+    val currentActivity = getCurrentActivity()
+
+    if (currentActivity == null) {
+      callback.invoke("Activity doesn't exist", null)
+      return
+    }
+
+    if (!Geocoder.isPresent()) {
+      callback.invoke("Geocoder is not present", null)
+    }
+
+    try{
+      val geocoder = Geocoder(reactApplicationContext, Locale.getDefault())
+
+      // First fetch as many local addresses as possible
+      val localAddresses = geocoder.getFromLocation(
+        latitude,
+        longitude,
+        MAX_RESULTS
+      )
+      var addresses = localAddresses.orEmpty()
+      callback.invoke(null,formatAddresses(addresses))
+    } catch(e: Exception){
+      callback.invoke(e.message, null)
+    }
+  }
 }
